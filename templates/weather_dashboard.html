@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        h1 {
+            font-size: 40px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .tagline {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .search-bar {
+            background: white;
+            border-radius: 50px;
+            padding: 10px 20px;
+            display: flex;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .search-bar input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            color: #333;
+        }
+        
+        .search-bar input::placeholder {
+            color: #999;
+        }
+        
+        .search-bar button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .search-bar button:hover {
+            transform: scale(1.05);
+        }
+        
+        .search-bar button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 15px;
+            margin-top: 5px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .suggestions.show {
+            display: block;
+        }
+        
+        .suggestion-item {
+            padding: 15px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+        }
+        
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+        
+        .suggestion-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .suggestion-name {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .suggestion-country {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .current-weather {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: none;
+        }
+        
+        .current-weather.show {
+            display: block;
+        }
+        
+        .weather-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 20px;
+        }
+        
+        .weather-title {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .weather-icon {
+            font-size: 80px;
+        }
+        
+        .weather-info h2 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .weather-info p {
+            color: #666;
+            font-size: 16px;
+            text-transform: capitalize;
+        }
+        
+        .weather-temp {
+            text-align: right;
+        }
+        
+        .current-temp {
+            font-size: 64px;
+            font-weight: 700;
+            color: #667eea;
+            line-height: 1;
+        }
+        
+        .temp-feel {
+            color: #999;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+        
+        .detail-card {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+        
+        .detail-label {
+            color: #999;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        
+        .detail-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .forecast-section {
+            display: none;
+        }
+        
+        .forecast-section.show {
+            display: block;
+        }
+        
+        .forecast-title {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .forecast-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .forecast-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .forecast-date {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .forecast-icon {
+            font-size: 48px;
+            margin: 10px 0;
+        }
+        
+        .forecast-temp {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .forecast-desc {
+            color: #999;
+            font-size: 12px;
+            text-transform: capitalize;
+        }
+        
+        .status {
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .status.show {
+            display: block;
+        }
+        
+        .status.info {
+            background: rgba(52, 152, 219, 0.7);
+        }
+        
+        .status.success {
+            background: rgba(46, 204, 113, 0.7);
+        }
+        
+        .status.error {
+            background: rgba(231, 76, 60, 0.7);
+        }
+        
+        .status.warning {
+            background: rgba(241, 196, 15, 0.7);
+        }
+        
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 16px;
+            padding: 20px;
+            display: none;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 28px;
+            }
+            
+            .search-bar {
+                flex-direction: column;
+            }
+            
+            .weather-header {
+                flex-direction: column;
+            }
+            
+            .weather-temp {
+                text-align: left;
+                margin-top: 20px;
+            }
+            
+            .current-temp {
+                font-size: 48px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌤️ Weather Dashboard</h1>
+            <p class="tagline">Get real-time weather information for any city</p>
+        </header>
+        
+        <div class="search-bar" style="position: relative;">
+            <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Search for a city..."
+                autocomplete="off"
+            >
+            <button id="searchBtn" onclick="searchWeather()">Search</button>
+            <div class="suggestions" id="suggestions"></div>
+        </div>
+        
+        <div class="status" id="status"></div>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <span>Loading weather data...</span>
+        </div>
+        
+        <div class="current-weather" id="currentWeather"></div>
+        
+        <div class="forecast-section" id="forecastSection">
+            <h3 class="forecast-title">📅 5-Day Forecast</h3>
+            <div class="forecast-grid" id="forecastGrid"></div>
+        </div>
+        
+        <div class="buttons">
+            <button class="btn btn-secondary" onclick="useGeolocation()">📍 Use My Location</button>
+            <button class="btn btn-secondary" onclick="clearCache()">🗑️ Clear Cache</button>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = window.location.origin;
+        let currentCity = null;
+        
+        // Search input event listeners
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchWeather();
+        });
+        
+        document.getElementById('searchInput').addEventListener('input', debounce(autoComplete, 300));
+        
+        function debounce(func, delay) {
+            let timeoutId;
+            return function (...args) {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => func(...args), delay);
+            };
+        }
+        
+        async function autoComplete() {
+            const query = document.getElementById('searchInput').value;
+            
+            if (query.length < 2) {
+                document.getElementById('suggestions').classList.remove('show');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/weather/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displaySuggestions(data.cities);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function displaySuggestions(cities) {
+            const suggestionsDiv = document.getElementById('suggestions');
+            
+            if (cities.length === 0) {
+                suggestionsDiv.classList.remove('show');
+                return;
+            }
+            
+            suggestionsDiv.innerHTML = cities.map(city => `
+                <div class="suggestion-item" onclick="selectCity('${city.name}')">
+                    <div class="suggestion-name">${city.name}</div>
+                    <div class="suggestion-country">${city.country}</div>
+                </div>
+            `).join('');
+            
+            suggestionsDiv.classList.add('show');
+        }
+        
+        function selectCity(cityName) {
+            document.getElementById('searchInput').value = cityName;
+            document.getElementById('suggestions').classList.remove('show');
+            searchWeather();
+        }
+        
+        async function searchWeather() {
+            const city = document.getElementById('searchInput').value.trim();
+            
+            if (!city) {
+                showStatus('Please enter a city name', 'warning');
+                return;
+            }
+            
+            currentCity = city;
+            showLoading(true);
+            
+            try {
+                // Fetch current weather
+                const weatherResponse = await fetch(`${API_BASE}/api/weather/current`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ city })
+                });
+                
+                const weatherData = await weatherResponse.json();
+                
+                if (!weatherData.success) {
+                    showStatus(weatherData.error || 'Failed to fetch weather', 'error');
+                    showLoading(false);
+                    return;
+                }
+                
+                displayCurrentWeather(weatherData.data, weatherData.cached);
+                
+                // Fetch forecast
+                const forecastResponse = await fetch(`${API_BASE}/api/weather/forecast`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ city })
+                });
+                
+                const forecastData = await forecastResponse.json();
+                
+                if (forecastData.success) {
+                    displayForecast(forecastData.data);
+                }
+                
+                showStatus(`Weather loaded for ${weatherData.data.city}${weatherData.cached ? ' (cached)' : ''}`, 'success');
+                showLoading(false);
+                
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+                showLoading(false);
+            }
+        }
+        
+        function displayCurrentWeather(data, cached) {
+            const currentDiv = document.getElementById('currentWeather');
+            const weatherIcon = getWeatherIcon(data.main);
+            
+            currentDiv.innerHTML = `
+                <div class="weather-header">
+                    <div class="weather-title">
+                        <div class="weather-icon">${weatherIcon}</div>
+                        <div class="weather-info">
+                            <h2>${data.city}, ${data.country}</h2>
+                            <p>${data.description}</p>
+                        </div>
+                    </div>
+                    <div class="weather-temp">
+                        <div class="current-temp">${Math.round(data.temperature)}°C</div>
+                        <div class="temp-feel">Feels like ${Math.round(data.feels_like)}°C</div>
+                    </div>
+                </div>
+                
+                <div class="weather-details">
+                    <div class="detail-card">
+                        <div class="detail-label">Humidity</div>
+                        <div class="detail-value">${data.humidity}%</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-label">Pressure</div>
+                        <div class="detail-value">${data.pressure} hPa</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-label">Wind Speed</div>
+                        <div class="detail-value">${Math.round(data.wind_speed * 3.6)} km/h</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-label">Visibility</div>
+                        <div class="detail-value">${(data.visibility / 1000).toFixed(1)} km</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-label">Cloud Cover</div>
+                        <div class="detail-value">${data.clouds}%</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-label">Min/Max Temp</div>
+                        <div class="detail-value">${Math.round(data.temp_min)}° / ${Math.round(data.temp_max)}°</div>
+                    </div>
+                </div>
+            `;
+            
+            currentDiv.classList.add('show');
+        }
+        
+        function displayForecast(forecastData) {
+            const forecastGrid = document.getElementById('forecastGrid');
+            const dailyForecasts = groupByDay(forecastData);
+            
+            forecastGrid.innerHTML = dailyForecasts.slice(0, 5).map(day => {
+                const weatherIcon = getWeatherIcon(day.main);
+                return `
+                    <div class="forecast-card">
+                        <div class="forecast-date">${formatDate(day.date)}</div>
+                        <div class="forecast-icon">${weatherIcon}</div>
+                        <div class="forecast-temp">${Math.round(day.temperature)}°C</div>
+                        <div class="forecast-desc">${day.description}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('forecastSection').classList.add('show');
+        }
+        
+        function groupByDay(forecasts) {
+            const grouped = {};
+            
+            forecasts.forEach(forecast => {
+                const date = new Date(forecast.date * 1000).toLocaleDateString();
+                if (!grouped[date]) {
+                    grouped[date] = forecast;
+                }
+            });
+            
+            return Object.values(grouped);
+        }
+        
+        function getWeatherIcon(main) {
+            const icons = {
+                'Clear': '☀️',
+                'Clouds': '☁️',
+                'Rain': '🌧️',
+                'Drizzle': '🌦️',
+                'Thunderstorm': '⛈️',
+                'Snow': '❄️',
+                'Mist': '🌫️',
+                'Smoke': '💨',
+                'Haze': '🌫️',
+                'Dust': '🌪️',
+                'Fog': '🌫️',
+                'Sand': '🌪️',
+                'Ash': '💨',
+                'Squall': '💨',
+                'Tornado': '🌪️'
+            };
+            
+            return icons[main] || '🌤️';
+        }
+        
+        function formatDate(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status show ${type}`;
+            
+            setTimeout(() => {
+                statusDiv.classList.remove('show');
+            }, 5000);
+        }
+        
+        function showLoading(show) {
+            const loadingDiv = document.getElementById('loading');
+            if (show) {
+                loadingDiv.classList.add('show');
+            } else {
+                loadingDiv.classList.remove('show');
+            }
+        }
+        
+        function useGeolocation() {
+            if (!navigator.geolocation) {
+                showStatus('Geolocation not supported', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    try {
+                        const { latitude, longitude } = position.coords;
+                        
+                        const response = await fetch(`${API_BASE}/api/weather/coordinates`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lat: latitude, lon: longitude })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            displayCurrentWeather(data.data, data.cached);
+                            document.getElementById('searchInput').value = data.data.city;
+                            currentCity = data.data.city;
+                            showStatus('Location detected: ' + data.data.city, 'success');
+                        } else {
+                            showStatus(data.error, 'error');
+                        }
+                        
+                        showLoading(false);
+                    } catch (error) {
+                        showStatus('Error: ' + error.message, 'error');
+                        showLoading(false);
+                    }
+                },
+                (error) => {
+                    showStatus('Location access denied', 'error');
+                    showLoading(false);
+                }
+            );
+        }
+        
+        async function clearCache() {
+            try {
+                await fetch(`${API_BASE}/api/weather/cache/clear`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                showStatus('Cache cleared', 'success');
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
