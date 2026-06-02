@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎵 Hermus - Audio Processing Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎵 Hermus</h1>
+            <p>Free Audio Processing - Upload, Sync, Master & Export</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Step 1: Upload -->
+            <section class="section" id="upload-section">
+                <h2>Step 1: Upload Audio</h2>
+                <div class="upload-area" id="uploadArea">
+                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <h3>Drop audio file here or click to select</h3>
+                    <p>Supported formats: MP3, WAV, FLAC, OGG, M4A</p>
+                    <input type="file" id="fileInput" accept=".mp3,.wav,.flac,.ogg,.m4a" hidden>
+                </div>
+                <div id="fileInfo" class="file-info" style="display: none;">
+                    <p><strong>Selected:</strong> <span id="fileName"></span></p>
+                    <p><strong>Size:</strong> <span id="fileSize"></span></p>
+                </div>
+            </section>
+
+            <!-- Step 2: Analyze -->
+            <section class="section" id="analyze-section" style="display: none;">
+                <h2>Step 2: Analyze Audio</h2>
+                <button class="btn btn-primary" id="analyzeBtn">Analyze Audio</button>
+                <div id="analysisResults" class="results" style="display: none;">
+                    <h3>Analysis Results</h3>
+                    <div id="analysisData" class="analysis-data"></div>
+                </div>
+            </section>
+
+            <!-- Step 3: Lyrics -->
+            <section class="section" id="lyrics-section" style="display: none;">
+                <h2>Step 3: Add Lyrics</h2>
+                <textarea id="lyricsInput" placeholder="Enter lyrics here (one line per line)..." rows="10"></textarea>
+                <button class="btn btn-primary" id="syncBtn">Sync Lyrics to Beats</button>
+                <div id="syncResults" class="results" style="display: none;">
+                    <h3>Lyrics Sync Data</h3>
+                    <div id="syncData" class="sync-data"></div>
+                </div>
+            </section>
+
+            <!-- Step 4: Master -->
+            <section class="section" id="master-section" style="display: none;">
+                <h2>Step 4: Master Audio</h2>
+                <div class="master-options">
+                    <label>
+                        <input type="checkbox" id="normalizeCheckbox" checked> Normalize Audio
+                    </label>
+                    <label>
+                        Loudness Target (LUFS):
+                        <input type="number" id="loudnessInput" value="-14" min="-30" max="0" step="1">
+                    </label>
+                    <label>
+                        <input type="checkbox" id="compressCheckbox"> Apply Compression
+                    </label>
+                </div>
+                <button class="btn btn-primary" id="processBtn">Master Audio</button>
+            </section>
+
+            <!-- Step 5: Export -->
+            <section class="section" id="export-section" style="display: none;">
+                <h2>Step 5: Export as MP3</h2>
+                <button class="btn btn-primary" id="exportBtn">Export as MP3</button>
+                <div id="exportResults" class="results" style="display: none;">
+                    <h3>Export Complete!</h3>
+                    <p>Your audio is ready to download:</p>
+                    <a id="downloadLink" class="btn btn-success" href="#" download>⬇️ Download MP3</a>
+                </div>
+            </section>
+        </main>
+
+        <!-- Loading and Progress -->
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="spinner"></div>
+            <p id="loadingText">Processing...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+        <!-- Success Message -->
+        <div id="successMessage" class="success-message" style="display: none;"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
