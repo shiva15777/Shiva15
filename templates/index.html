@@ -3,100 +3,541 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎵 Hermus - Audio Processing Tool</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>Audio Master Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+            background: #f8f9ff;
+        }
+        
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+        
+        .upload-area.drag-over {
+            border-color: #764ba2;
+            background: #f0f2ff;
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .upload-text {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .upload-hint {
+            color: #999;
+            font-size: 12px;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .controls {
+            margin: 20px 0;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #764ba2;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+        
+        input[type="range"]::-moz-range-thumb:hover {
+            background: #764ba2;
+        }
+        
+        .value-display {
+            color: #667eea;
+            font-weight: 600;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        
+        .checkbox-group {
+            margin: 15px 0;
+        }
+        
+        input[type="checkbox"] {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            font-size: 14px;
+        }
+        
+        .status.show {
+            display: block;
+        }
+        
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-left: 4px solid #1976d2;
+        }
+        
+        .status.success {
+            background: #e8f5e9;
+            color: #388e3c;
+            border-left: 4px solid #388e3c;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+        
+        .status.warning {
+            background: #fff3e0;
+            color: #e65100;
+            border-left: 4px solid #e65100;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .file-info {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+        }
+        
+        .file-info.show {
+            display: block;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .info-label {
+            color: #666;
+        }
+        
+        .info-value {
+            color: #333;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <h1>🎵 Hermus</h1>
-            <p>Free Audio Processing - Upload, Sync, Master & Export</p>
-        </header>
-
-        <main class="main-content">
-            <!-- Step 1: Upload -->
-            <section class="section" id="upload-section">
-                <h2>Step 1: Upload Audio</h2>
-                <div class="upload-area" id="uploadArea">
-                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
-                    <h3>Drop audio file here or click to select</h3>
-                    <p>Supported formats: MP3, WAV, FLAC, OGG, M4A</p>
-                    <input type="file" id="fileInput" accept=".mp3,.wav,.flac,.ogg,.m4a" hidden>
-                </div>
-                <div id="fileInfo" class="file-info" style="display: none;">
-                    <p><strong>Selected:</strong> <span id="fileName"></span></p>
-                    <p><strong>Size:</strong> <span id="fileSize"></span></p>
-                </div>
-            </section>
-
-            <!-- Step 2: Analyze -->
-            <section class="section" id="analyze-section" style="display: none;">
-                <h2>Step 2: Analyze Audio</h2>
-                <button class="btn btn-primary" id="analyzeBtn">Analyze Audio</button>
-                <div id="analysisResults" class="results" style="display: none;">
-                    <h3>Analysis Results</h3>
-                    <div id="analysisData" class="analysis-data"></div>
-                </div>
-            </section>
-
-            <!-- Step 3: Lyrics -->
-            <section class="section" id="lyrics-section" style="display: none;">
-                <h2>Step 3: Add Lyrics</h2>
-                <textarea id="lyricsInput" placeholder="Enter lyrics here (one line per line)..." rows="10"></textarea>
-                <button class="btn btn-primary" id="syncBtn">Sync Lyrics to Beats</button>
-                <div id="syncResults" class="results" style="display: none;">
-                    <h3>Lyrics Sync Data</h3>
-                    <div id="syncData" class="sync-data"></div>
-                </div>
-            </section>
-
-            <!-- Step 4: Master -->
-            <section class="section" id="master-section" style="display: none;">
-                <h2>Step 4: Master Audio</h2>
-                <div class="master-options">
-                    <label>
-                        <input type="checkbox" id="normalizeCheckbox" checked> Normalize Audio
-                    </label>
-                    <label>
-                        Loudness Target (LUFS):
-                        <input type="number" id="loudnessInput" value="-14" min="-30" max="0" step="1">
-                    </label>
-                    <label>
-                        <input type="checkbox" id="compressCheckbox"> Apply Compression
-                    </label>
-                </div>
-                <button class="btn btn-primary" id="processBtn">Master Audio</button>
-            </section>
-
-            <!-- Step 5: Export -->
-            <section class="section" id="export-section" style="display: none;">
-                <h2>Step 5: Export as MP3</h2>
-                <button class="btn btn-primary" id="exportBtn">Export as MP3</button>
-                <div id="exportResults" class="results" style="display: none;">
-                    <h3>Export Complete!</h3>
-                    <p>Your audio is ready to download:</p>
-                    <a id="downloadLink" class="btn btn-success" href="#" download>⬇️ Download MP3</a>
-                </div>
-            </section>
-        </main>
-
-        <!-- Loading and Progress -->
-        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
-            <div class="spinner"></div>
-            <p id="loadingText">Processing...</p>
+        <h1>🎵 Audio Master</h1>
+        <p class="subtitle">Upload and master your audio with professional quality</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Drag and drop your audio file here</div>
+            <div class="upload-hint">or click to select (MP3, WAV, FLAC, OGG, M4A - Max 100MB)</div>
+            <input type="file" id="fileInput" accept=".mp3,.wav,.flac,.ogg,.m4a">
         </div>
-
-        <!-- Error Message -->
-        <div id="errorMessage" class="error-message" style="display: none;"></div>
-
-        <!-- Success Message -->
-        <div id="successMessage" class="success-message" style="display: none;"></div>
+        
+        <div class="file-info" id="fileInfo">
+            <div class="info-row">
+                <span class="info-label">File:</span>
+                <span class="info-value" id="fileName">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Size:</span>
+                <span class="info-value" id="fileSize">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Duration:</span>
+                <span class="info-value" id="fileDuration">-</span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <label>Target Loudness (LUFS)</label>
+            <input type="range" id="loudness" min="-30" max="-5" value="-14" step="1">
+            <div class="value-display">Loudness: <span id="loudnessValue">-14</span> LUFS</div>
+        </div>
+        
+        <div class="checkbox-group">
+            <input type="checkbox" id="normalize" checked>
+            <label for="normalize" style="display: inline; margin-bottom: 0;">Normalize audio</label>
+        </div>
+        
+        <div class="buttons">
+            <button class="btn-primary" id="analyzeBtn" disabled>📊 Analyze</button>
+            <button class="btn-primary" id="masterBtn" disabled>🎚️ Master & Finalize</button>
+            <button class="btn-secondary" id="downloadBtn" disabled>⬇️ Download</button>
+            <button class="btn-secondary" id="resetBtn">🔄 Reset</button>
+        </div>
+        
+        <div class="status" id="status"></div>
     </div>
-
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <script>
+        let currentFile = null;
+        let uploadedFilePath = null;
+        let processedFilePath = null;
+        
+        // Upload area events
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+        
+        // Loudness slider
+        document.getElementById('loudness').addEventListener('input', (e) => {
+            document.getElementById('loudnessValue').textContent = e.target.value;
+        });
+        
+        function handleFileSelect(file) {
+            currentFile = file;
+            
+            // Show file info
+            const fileInfo = document.getElementById('fileInfo');
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+            fileInfo.classList.add('show');
+            
+            // Upload file
+            uploadFile(file);
+        }
+        
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            showStatus('⏳ Uploading file...', 'info');
+            
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    uploadedFilePath = data.filepath;
+                    showStatus('✅ File uploaded successfully!', 'success');
+                    document.getElementById('analyzeBtn').disabled = false;
+                    document.getElementById('masterBtn').disabled = false;
+                } else {
+                    showStatus('❌ Upload failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Upload error: ' + error.message, 'error');
+            }
+        }
+        
+        document.getElementById('analyzeBtn').addEventListener('click', analyzeAudio);
+        document.getElementById('masterBtn').addEventListener('click', masterAudio);
+        document.getElementById('downloadBtn').addEventListener('click', downloadAudio);
+        document.getElementById('resetBtn').addEventListener('click', resetForm);
+        
+        async function analyzeAudio() {
+            if (!uploadedFilePath) return;
+            
+            showStatus('🔍 Analyzing audio...', 'info');
+            
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filepath: uploadedFilePath })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const analysis = data.analysis;
+                    let details = '✅ Analysis Results:\n';
+                    details += `Duration: ${analysis.duration.toFixed(2)}s\n`;
+                    details += `Loudness: ${analysis.loudness_db.toFixed(1)} dB\n`;
+                    details += `Tempo: ${analysis.tempo.toFixed(1)} BPM\n`;
+                    details += `Sample Rate: ${analysis.sample_rate} Hz`;
+                    
+                    showStatus(details, 'success');
+                } else {
+                    showStatus('❌ Analysis failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Analysis error: ' + error.message, 'error');
+            }
+        }
+        
+        async function masterAudio() {
+            if (!uploadedFilePath) return;
+            
+            showStatus('🎚️ Mastering audio... This may take a moment', 'info');
+            
+            try {
+                const loudness = parseInt(document.getElementById('loudness').value);
+                const normalize = document.getElementById('normalize').checked;
+                
+                const response = await fetch('/api/process', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filepath: uploadedFilePath,
+                        normalize: normalize,
+                        loudness: loudness
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    processedFilePath = data.output_path;
+                    
+                    // Now export as MP3
+                    exportAudio(data.output_path);
+                } else {
+                    showStatus('❌ Mastering failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Mastering error: ' + error.message, 'error');
+            }
+        }
+        
+        async function exportAudio(filepath) {
+            showStatus('💾 Exporting to MP3...', 'info');
+            
+            try {
+                const response = await fetch('/api/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filepath: filepath })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    processedFilePath = data.output_path;
+                    showStatus('✅ Audio mastering complete! Ready to download.', 'success');
+                    document.getElementById('downloadBtn').disabled = false;
+                } else {
+                    showStatus('❌ Export failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Export error: ' + error.message, 'error');
+            }
+        }
+        
+        async function downloadAudio() {
+            if (!processedFilePath) return;
+            
+            const filename = processedFilePath.split('/').pop();
+            const downloadUrl = `/api/download/${filename}`;
+            
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function resetForm() {
+            currentFile = null;
+            uploadedFilePath = null;
+            processedFilePath = null;
+            fileInput.value = '';
+            
+            document.getElementById('fileInfo').classList.remove('show');
+            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('masterBtn').disabled = true;
+            document.getElementById('downloadBtn').disabled = true;
+            document.getElementById('status').classList.remove('show');
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status show ${type}`;
+        }
+    </script>
 </body>
 </html>

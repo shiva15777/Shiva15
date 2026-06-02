@@ -1,1 +1,1 @@
-# Hermus audio processing utilities package
+# Utils package

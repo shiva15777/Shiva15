@@ -1,178 +1,178 @@
 import librosa
-import numpy as np
 import soundfile as sf
-from pydub import AudioSegment
-from pydub.exceptions import CouldntDecodeError
+import numpy as np
 import os
-from config import DEFAULT_SAMPLE_RATE, OUTPUT_FOLDER, AUDIO_FORMAT, AUDIO_BITRATE, TEMP_FOLDER
+from pydub import AudioSegment
+from scipy import signal
 import logging
+from config import OUTPUT_FOLDER, TEMP_FOLDER, AUDIO_BITRATE
 
 logger = logging.getLogger(__name__)
 
-
 class AudioMaster:
-    """Handle audio mastering and export"""
-
-    def __init__(self, sample_rate=DEFAULT_SAMPLE_RATE):
-        self.sample_rate = sample_rate
-
-    def normalize_audio(self, y, target_loudness=-14):
-        """Normalize audio to target loudness (LUFS)"""
+    """Handle audio mastering and processing"""
+    
+    def __init__(self):
+        self.sr = 44100
+        self.hop_length = 512
+    
+    def master(self, filepath, normalize=True, loudness=-14):
+        """Master audio with compression, EQ, and normalization"""
         try:
-            # Calculate current RMS
-            rms = np.sqrt(np.mean(y ** 2))
-            
-            if rms == 0:
-                return y
-            
-            # Convert target LUFS to linear gain
-            # Simplified: -14 LUFS ≈ -14dB
-            target_db = target_loudness
-            current_db = 20 * np.log10(rms) if rms > 0 else -np.inf
-            
-            gain_db = target_db - current_db
-            gain_linear = 10 ** (gain_db / 20)
-            
-            # Apply gain with soft clipping to prevent distortion
-            y_normalized = y * gain_linear
-            
-            # Soft clipping
-            threshold = 0.95
-            mask = np.abs(y_normalized) > threshold
-            y_normalized[mask] = np.sign(y_normalized[mask]) * threshold
-            
-            logger.info(f"Audio normalized. Gain: {gain_db:.2f}dB")
-            return y_normalized
-
-        except Exception as e:
-            logger.error(f"Error normalizing audio: {str(e)}")
-            raise
-
-    def apply_eq(self, y, sr, eq_type='flat'):
-        """Apply EQ to audio"""
-        try:
-            if eq_type == 'bass_boost':
-                # Simple bass boost using filtering
-                # This is a placeholder - in production use scipy.signal
-                logger.info("Applying bass boost")
-                return y
-            elif eq_type == 'treble_boost':
-                logger.info("Applying treble boost")
-                return y
-            else:
-                logger.info("No EQ applied")
-                return y
-
-        except Exception as e:
-            logger.error(f"Error applying EQ: {str(e)}")
-            raise
-
-    def compress_audio(self, y, ratio=4, threshold=0.5):
-        """Apply dynamic range compression"""
-        try:
-            # Simple compressor
-            mask = np.abs(y) > threshold
-            y_compressed = y.copy()
-            y_compressed[mask] = np.sign(y[mask]) * (threshold + (np.abs(y[mask]) - threshold) / ratio)
-            
-            logger.info(f"Compression applied. Ratio: {ratio}:1, Threshold: {threshold}")
-            return y_compressed
-
-        except Exception as e:
-            logger.error(f"Error compressing audio: {str(e)}")
-            raise
-
-    def master(self, input_path, normalize=True, loudness=-14, compress=False, eq_type='flat'):
-        """Master audio file"""
-        try:
-            logger.info(f"Starting mastering: {input_path}")
+            logger.info(f"Starting mastering: {filepath}")
             
             # Load audio
-            y, sr = librosa.load(input_path, sr=self.sample_rate)
+            y, sr = librosa.load(filepath, sr=self.sr)
             
-            # Apply compression if requested
-            if compress:
-                y = self.compress_audio(y, ratio=4, threshold=0.5)
+            # Apply processing chain
+            y = self._apply_eq(y, sr)
+            y = self._apply_compression(y, sr)
             
-            # Apply EQ
-            y = self.apply_eq(y, sr, eq_type)
-            
-            # Normalize
             if normalize:
-                y = self.normalize_audio(y, target_loudness=loudness)
+                y = self._normalize(y, loudness)
             
-            # Save to temp file
-            output_filename = os.path.basename(input_path).split('.')[0] + '_mastered.wav'
-            output_path = os.path.join(TEMP_FOLDER, output_filename)
-            
-            sf.write(output_path, y, sr)
-            logger.info(f"Mastering complete: {output_path}")
-            
-            return output_path
-
-        except Exception as e:
-            logger.error(f"Error mastering audio: {str(e)}")
-            raise
-
-    def export_mp3(self, input_path, output_folder=OUTPUT_FOLDER, bitrate=AUDIO_BITRATE):
-        """Export audio as MP3"""
-        try:
-            logger.info(f"Exporting to MP3: {input_path}")
+            # Apply limiting to prevent clipping
+            y = self._apply_limiter(y)
             
             # Generate output filename
-            input_filename = os.path.basename(input_path)
-            output_filename = os.path.splitext(input_filename)[0] + '.mp3'
-            output_path = os.path.join(output_folder, output_filename)
+            base_name = os.path.basename(filepath)
+            name_without_ext = os.path.splitext(base_name)[0]
+            output_filename = f"{name_without_ext}_mastered.wav"
+            output_path = os.path.join(OUTPUT_FOLDER, output_filename)
             
-            # Load audio with pydub
-            try:
-                # Try loading as WAV first
-                audio = AudioSegment.from_wav(input_path)
-            except CouldntDecodeError:
-                try:
-                    # Try other formats
-                    audio = AudioSegment.from_file(input_path)
-                except CouldntDecodeError as e:
-                    # Load with librosa and convert
-                    y, sr = librosa.load(input_path, sr=None)
-                    
-                    # Convert to WAV first
-                    temp_wav = os.path.join(TEMP_FOLDER, 'temp_export.wav')
-                    sf.write(temp_wav, y, sr)
-                    audio = AudioSegment.from_wav(temp_wav)
+            # Save mastered audio
+            sf.write(output_path, y, sr)
+            logger.info(f"Mastered audio saved: {output_path}")
+            
+            return output_path
+            
+        except Exception as e:
+            logger.error(f"Mastering error: {str(e)}")
+            raise
+    
+    def export_mp3(self, filepath, bitrate=AUDIO_BITRATE):
+        """Export audio as MP3"""
+        try:
+            logger.info(f"Exporting to MP3: {filepath}")
+            
+            # Load audio file
+            audio = AudioSegment.from_wav(filepath)
+            
+            # Generate output filename
+            base_name = os.path.basename(filepath)
+            name_without_ext = os.path.splitext(base_name)[0]
+            output_filename = f"{name_without_ext}.mp3"
+            output_path = os.path.join(OUTPUT_FOLDER, output_filename)
             
             # Export as MP3
-            audio.export(
-                output_path,
-                format='mp3',
-                bitrate=bitrate,
-                codec='libmp3lame'
-            )
+            audio.export(output_path, format="mp3", bitrate=bitrate)
+            logger.info(f"MP3 exported: {output_path}")
             
-            logger.info(f"MP3 export complete: {output_path}")
             return output_path
-
+            
         except Exception as e:
-            logger.error(f"Error exporting MP3: {str(e)}")
+            logger.error(f"MP3 export error: {str(e)}")
             raise
-
-    def batch_export_mp3(self, input_paths, output_folder=OUTPUT_FOLDER):
-        """Export multiple files as MP3"""
-        results = []
-        for input_path in input_paths:
-            try:
-                output_path = self.export_mp3(input_path, output_folder)
-                results.append({
-                    'input': input_path,
-                    'output': output_path,
-                    'success': True
-                })
-            except Exception as e:
-                logger.error(f"Batch export failed for {input_path}: {str(e)}")
-                results.append({
-                    'input': input_path,
-                    'error': str(e),
-                    'success': False
-                })
-        
-        return results
+    
+    def _apply_eq(self, y, sr):
+        """Apply equalization to audio"""
+        try:
+            # Simple 3-band EQ
+            # Low shelf filter (boost bass)
+            sos_low = signal.butter(2, 200, btype='low', fs=sr, output='sos')
+            y_low = signal.sosfilt(sos_low, y) * 0.9
+            
+            # High shelf filter (boost treble)
+            sos_high = signal.butter(2, 5000, btype='high', fs=sr, output='sos')
+            y_high = signal.sosfilt(sos_high, y) * 0.8
+            
+            # Mix
+            y = y + y_low * 0.1 + y_high * 0.1
+            
+            # Normalize to prevent clipping
+            max_val = np.max(np.abs(y))
+            if max_val > 1.0:
+                y = y / max_val
+            
+            return y
+            
+        except Exception as e:
+            logger.error(f"EQ error: {str(e)}")
+            return y
+    
+    def _apply_compression(self, y, sr, threshold=-20, ratio=4):
+        """Apply dynamic range compression"""
+        try:
+            # Convert to dB
+            y_db = 20 * np.log10(np.abs(y) + 1e-9)
+            
+            # Apply compression
+            mask = y_db > threshold
+            y_db[mask] = threshold + (y_db[mask] - threshold) / ratio
+            
+            # Convert back to linear
+            y_compressed = np.sign(y) * (10 ** (y_db / 20))
+            
+            return y_compressed
+            
+        except Exception as e:
+            logger.error(f"Compression error: {str(e)}")
+            return y
+    
+    def _normalize(self, y, target_loudness=-14):
+        """Normalize audio to target loudness (LUFS)"""
+        try:
+            # Calculate current loudness
+            rms = np.sqrt(np.mean(y**2))
+            current_loudness = 20 * np.log10(rms + 1e-9)
+            
+            # Calculate gain needed
+            gain_db = target_loudness - current_loudness
+            gain_linear = 10 ** (gain_db / 20)
+            
+            # Apply gain
+            y_normalized = y * gain_linear
+            
+            # Prevent clipping
+            max_val = np.max(np.abs(y_normalized))
+            if max_val > 1.0:
+                y_normalized = y_normalized / max_val
+            
+            logger.info(f"Normalized from {current_loudness:.1f}dB to {target_loudness:.1f}dB")
+            return y_normalized
+            
+        except Exception as e:
+            logger.error(f"Normalization error: {str(e)}")
+            return y
+    
+    def _apply_limiter(self, y, threshold=0.95):
+        """Apply limiter to prevent clipping"""
+        try:
+            y_limited = np.clip(y, -threshold, threshold)
+            return y_limited
+        except Exception as e:
+            logger.error(f"Limiter error: {str(e)}")
+            return y
+    
+    def get_processing_stats(self, original_path, processed_path):
+        """Get statistics comparing original and processed audio"""
+        try:
+            y_orig, sr_orig = librosa.load(original_path, sr=self.sr)
+            y_proc, sr_proc = librosa.load(processed_path, sr=self.sr)
+            
+            orig_rms = np.sqrt(np.mean(y_orig**2))
+            proc_rms = np.sqrt(np.mean(y_proc**2))
+            
+            stats = {
+                'original_loudness_db': float(20 * np.log10(orig_rms + 1e-9)),
+                'processed_loudness_db': float(20 * np.log10(proc_rms + 1e-9)),
+                'gain_applied_db': float(20 * np.log10((proc_rms + 1e-9) / (orig_rms + 1e-9))),
+                'original_peak': float(np.max(np.abs(y_orig))),
+                'processed_peak': float(np.max(np.abs(y_proc)))
+            }
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Stats error: {str(e)}")
+            raise

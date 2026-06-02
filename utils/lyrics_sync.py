@@ -1,133 +1,81 @@
-import numpy as np
 import librosa
-from config import DEFAULT_SAMPLE_RATE, DEFAULT_HOP_LENGTH
+import numpy as np
+import json
 import logging
 
 logger = logging.getLogger(__name__)
 
-
 class LyricsSync:
-    """Synchronize lyrics with audio beats"""
-
-    def __init__(self, sample_rate=DEFAULT_SAMPLE_RATE, hop_length=DEFAULT_HOP_LENGTH):
-        self.sample_rate = sample_rate
-        self.hop_length = hop_length
-
+    """Handle lyrics synchronization with audio"""
+    
+    def __init__(self):
+        self.sr = 44100
+        self.hop_length = 512
+    
     def sync_to_beats(self, filepath, lyrics_text):
-        """Sync lyrics text to detected beats"""
+        """Sync lyrics to audio beats"""
         try:
-            logger.info(f"Syncing lyrics to: {filepath}")
-            
             # Load audio
-            y, sr = librosa.load(filepath, sr=self.sample_rate)
+            y, sr = librosa.load(filepath, sr=self.sr)
             
             # Detect beats
-            _, beats = librosa.beat.beat_track(y=y, sr=sr)
-            beat_times = librosa.frames_to_time(beats, sr=sr)
-            
-            # Split lyrics by lines
-            lines = [line.strip() for line in lyrics_text.split('\n') if line.strip()]
-            
-            # Create sync data
-            sync_data = []
-            
-            # Distribute lyrics across beats
-            beats_per_line = max(1, len(beat_times) // len(lines)) if lines else 1
-            
-            for i, line in enumerate(lines):
-                start_beat = i * beats_per_line
-                if start_beat < len(beat_times):
-                    start_time = float(beat_times[start_beat])
-                    
-                    # Calculate end time
-                    end_beat = min(start_beat + beats_per_line, len(beat_times) - 1)
-                    if end_beat < len(beat_times):
-                        end_time = float(beat_times[end_beat])
-                    else:
-                        end_time = float(librosa.get_duration(y=y, sr=sr))
-                    
-                    sync_data.append({
-                        'line_index': i,
-                        'text': line,
-                        'start_time': start_time,
-                        'end_time': end_time,
-                        'duration': end_time - start_time
-                    })
-            
-            logger.info(f"Synced {len(sync_data)} lines to beats")
-            return sync_data
-
-        except Exception as e:
-            logger.error(f"Error syncing lyrics: {str(e)}")
-            raise
-
-    def align_lyrics_to_onsets(self, filepath, lyrics_text):
-        """Align lyrics to detected onset times"""
-        try:
-            logger.info(f"Aligning lyrics to onsets: {filepath}")
-            
-            # Load audio
-            y, sr = librosa.load(filepath, sr=self.sample_rate)
-            
-            # Detect onsets
             onset_env = librosa.onset.onset_strength(y=y, sr=sr)
-            onset_frames = librosa.onset.onset_detect(
-                onset_env=onset_env,
-                sr=sr,
-                units='time'
-            )
+            tempo, beats = librosa.beat.beat_track(y=y, sr=sr, hop_length=self.hop_length)
             
-            # Split lyrics
-            lines = [line.strip() for line in lyrics_text.split('\n') if line.strip()]
+            # Convert beat frames to time
+            beat_times = librosa.frames_to_time(beats, sr=sr, hop_length=self.hop_length)
             
-            # Align lyrics to onsets
+            # Split lyrics into lines
+            lyrics_lines = [line.strip() for line in lyrics_text.split('\n') if line.strip()]
+            
+            # Sync lyrics to beats
             sync_data = []
-            for i, line in enumerate(lines):
-                if i < len(onset_frames):
-                    start_time = float(onset_frames[i])
-                    
-                    # Calculate end time
-                    if i + 1 < len(onset_frames):
-                        end_time = float(onset_frames[i + 1])
-                    else:
-                        end_time = float(librosa.get_duration(y=y, sr=sr))
-                    
+            for i, lyric in enumerate(lyrics_lines):
+                if i < len(beat_times):
                     sync_data.append({
-                        'line_index': i,
-                        'text': line,
-                        'start_time': start_time,
-                        'end_time': end_time,
-                        'duration': end_time - start_time
+                        'line': i + 1,
+                        'text': lyric,
+                        'time': float(beat_times[i]),
+                        'beat': int(i)
                     })
             
-            logger.info(f"Aligned {len(sync_data)} lines to onsets")
+            logger.info(f"Synced {len(sync_data)} lyrics lines")
             return sync_data
-
+            
         except Exception as e:
-            logger.error(f"Error aligning lyrics: {str(e)}")
+            logger.error(f"Lyrics sync error: {str(e)}")
             raise
-
-    def create_karaoke_data(self, filepath, lyrics_text):
-        """Create karaoke-style timing data for lyrics"""
+    
+    def generate_srt(self, sync_data, output_path):
+        """Generate SRT subtitle file from sync data"""
         try:
-            # Get beat-based sync
-            sync_data = self.sync_to_beats(filepath, lyrics_text)
+            srt_content = ""
+            for i, item in enumerate(sync_data, 1):
+                start_time = self._seconds_to_srt_time(item['time'])
+                
+                # Estimate end time (next beat or +2 seconds)
+                if i < len(sync_data):
+                    end_time = self._seconds_to_srt_time(sync_data[i]['time'])
+                else:
+                    end_time = self._seconds_to_srt_time(item['time'] + 2)
+                
+                srt_content += f"{i}\n{start_time} --> {end_time}\n{item['text']}\n\n"
             
-            # Format as karaoke data
-            karaoke_data = {
-                'lyrics': [item['text'] for item in sync_data],
-                'timings': [
-                    {
-                        'start': item['start_time'],
-                        'end': item['end_time'],
-                        'text': item['text']
-                    }
-                    for item in sync_data
-                ]
-            }
+            with open(output_path, 'w') as f:
+                f.write(srt_content)
             
-            return karaoke_data
-
+            logger.info(f"SRT file generated: {output_path}")
+            return output_path
+            
         except Exception as e:
-            logger.error(f"Error creating karaoke data: {str(e)}")
+            logger.error(f"SRT generation error: {str(e)}")
             raise
+    
+    @staticmethod
+    def _seconds_to_srt_time(seconds):
+        """Convert seconds to SRT time format (HH:MM:SS,mmm)"""
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        millis = int((seconds % 1) * 1000)
+        return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
